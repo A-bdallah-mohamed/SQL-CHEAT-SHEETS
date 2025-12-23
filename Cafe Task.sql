@@ -100,7 +100,7 @@ ALTER TABLE RECEITES
 ADD CONSTRAINT RECEITES_ORDER_FK  FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER_ID);
 
 
---
+
 --as a shop owner 
 --
 --1-i want to follow up my staff attendance 
