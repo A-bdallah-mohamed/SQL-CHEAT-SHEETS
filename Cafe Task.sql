@@ -10,7 +10,6 @@
 --->Recites (Recite id - PK, Customer id - FK, Order id - FK, Employee id - FK)
 --->Orders (Order id - Pk, PRODUCT_ID - FK, PRODUCT_PRICE, ITEM_ID - FK, ITEM_PRICE)
 --
-
 --items (item id - PK, item name, item price)
 CREATE TABLE ITEMS (
 ITEM_ID NUMBER,
@@ -101,10 +100,28 @@ ADD CONSTRAINT RECEITES_ORDER_FK  FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER
 
 
 
+
 --as a shop owner 
 --
 --1-i want to follow up my staff attendance 
 --
+
+SELECT * FROM ATTENDANCE;
+SELECT TO_CHAR(START_TIME,'yyyy-mm-dd HH12:MI:SS AM') FROM ATTENDANCE;
+
+
+SELECT  E.EMPLOYEE_NAME,TO_CHAR(A.DAY_DATE,'yyyy-mm-dd') AS "Day", A.ATTENDED,to_char(A.START_TIME , 'HH12:MI:SS AM') AS "Start Time",
+to_char(A.END_TIME , 'HH12:MI:SS AM') AS "End Time",
+FLOOR((
+(select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
+- 
+(select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
+* 24) || ' Hours' as "Work Time"
+FROM ATTENDANCE A
+JOIN STAFF E
+ON e.employee_id = a.employee_id;
+--WHERE A.EMPLOYEE_ID = 1016 AND A.DAY_DATE = TO_DATE('2025-12-21','YYYY-MM-DD');
+
 --2-i want to know customer visits per day
 --
 --3-i want to know revenue (revenue is the net from sales minus salary it`s calculated per month)
@@ -127,6 +144,23 @@ ADD CONSTRAINT RECEITES_ORDER_FK  FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER
 
 
 
+
+--how many employees in each department
+select d.dept_name ,count(*) as "Staff"
+from staff s
+join departments d
+on s.dept_id = d.dept_id
+group by  d.dept_name;
+
+
+
+--each employee with his manager
+select e.employee_id,e.employee_name,d.dept_name,
+ (select s.employee_name from staff s where s.employee_id = d.dept_manager) as "MANAGER" , e.salary
+from staff e
+join departments d 
+on e.dept_id = d.dept_id
+order by d.dept_id;
 
 
 
