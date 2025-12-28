@@ -101,14 +101,11 @@ ADD CONSTRAINT RECEITES_ORDER_FK  FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER
 
 
 
+
 --as a shop owner 
 --
 --1-i want to follow up my staff attendance 
 --
-
-SELECT * FROM ATTENDANCE;
-SELECT TO_CHAR(START_TIME,'yyyy-mm-dd HH12:MI:SS AM') FROM ATTENDANCE;
-
 
 SELECT  E.EMPLOYEE_NAME,TO_CHAR(A.DAY_DATE,'yyyy-mm-dd') AS "Day", A.ATTENDED,to_char(A.START_TIME , 'HH12:MI:SS AM') AS "Start Time",
 to_char(A.END_TIME , 'HH12:MI:SS AM') AS "End Time",
@@ -116,31 +113,160 @@ FLOOR((
 (select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
 - 
 (select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
-* 24) || ' Hours' as "Work Time"
+* 24) || ' Hours ' || floor((((
+(select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
+- 
+(select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
+* 24) - FLOOR((
+(select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
+- 
+(select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
+* 24)) *60)||' Minutes' as "Work Time"
 FROM ATTENDANCE A
 JOIN STAFF E
-ON e.employee_id = a.employee_id;
+ON e.employee_id = a.employee_id
+order by A.DAY_DATE;
 --WHERE A.EMPLOYEE_ID = 1016 AND A.DAY_DATE = TO_DATE('2025-12-21','YYYY-MM-DD');
 
 --2-i want to know customer visits per day
 --
+
+select to_char(DAY_AND_TIME,'YYYY-MM-DD') "Day", COUNT(DISTINCT customer_Id) "Customers" from RECEITES GROUP BY to_char(DAY_AND_TIME,'YYYY-MM-DD');
+
 --3-i want to know revenue (revenue is the net from sales minus salary it`s calculated per month)
 --
+
+select to_char(r.DAY_AND_TIME,'yyyy-MM') "Month",
+SUM(O.PRODUCT_PRICE) "Products Sales",
+SUM(O.ITEM_PRICE) "Items Sales",
+(SUM(O.ITEM_PRICE) + SUM(O.PRODUCT_PRICE)) "Sales",
+(select sum(salary) from Staff) "Sum Salary",
+((SUM(O.ITEM_PRICE) + SUM(O.PRODUCT_PRICE) - (select sum(salary) from Staff))) "Revenue"
+from receites r
+join orders o
+on r.receite_id = o.receite_id
+group by to_char(r.DAY_AND_TIME,'yyyy-MM')
+order by to_char(r.DAY_AND_TIME,'yyyy-MM');
+
+
 --4-i want to know how much salaries per department
 --
---5-i want to know the most gain day per year
---
+
+select d.dept_name "Dept Name", sum(s.salary) "Sum Salary" from staff s join departments d on s.dept_id = d.dept_id group by d.dept_name;
+
+
 --6-i want to get the most active hour per week day
 --
+
+
+
+select DISTINCT to_char(rr.DAY_AND_TIME,'yyyy-mm-dd') "Day" ,
+
+(select 
+to_char(r.DAY_AND_TIME,'HH12 AM') 
+from receites r
+  where to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(rr.DAY_AND_TIME,'yyyy-mm-dd') 
+  group by 
+to_char(r.DAY_AND_TIME,'yyyy-mm-dd'),
+to_char(r.DAY_AND_TIME,'HH12 AM')
+ORDER BY to_char(r.DAY_AND_TIME,'yyyy-mm-dd'),
+count(*) desc 
+fetch first 1 row only
+ ) "Most Active Hour"
+from receites rr
+group by 
+to_char(rr.DAY_AND_TIME,'yyyy-mm-dd'),rr.DAY_AND_TIME
+ORDER BY to_char(rr.DAY_AND_TIME,'yyyy-mm-dd');
+
+
+
+
 --7-i want to know the most sold item
 --
+--most sold product
+select  p.product_name , count(*) from orders o 
+left join products p 
+on o.product_id = p.product_id
+left join items i
+on o.item_id = i.item_id
+group by p.product_name
+order by count(*) desc
+ offset 1 rows
+ fetch  first row only;
+
+--most sold item
+select  i.item_name , count(*) from orders o 
+left join products p 
+on o.product_id = p.product_id
+left join items i
+on o.item_id = i.item_id
+group by i.item_name
+order by count(*) desc
+ offset 1 rows
+ fetch  first row only;
+
+
+
+
 --8- if salary is bigger than 10k 
 --
---9- if item revenue (sales only) is bigger than 5k
+
+select employee_name,decode(salary,salary > 10000,'More than 10k','Less than 10k') "Salary" from staff;
+
+
 --
+--9- if product revenue (sales only) is bigger than 5k
+
+select  p.product_name ,case  when sum(nvl(o.product_price,0)) > 5000 then 'More than 5k' else 'less than 5k' end as Sales from orders o 
+left join products p 
+on o.product_id = p.product_id
+where p.product_name is not null
+group by p.product_name;
+
+
+
 --10- i want a report of how much each staff sold per item , and the total of the staff revenue and his department and his manager
 
 
+select * from receites;
+select e.employee_Name staff,
+p.product_name || i.item_name "ITEM/PRODUCT",
+count(*) sold,
+CASE WHEN SUM(O.PRODUCT_PRICE) IS NOT NULL THEN  SUM(O.PRODUCT_PRICE)
+ELSE SUM(O.ITEM_PRICE)
+END sales,
+(select d.dept_name from departments d where d.dept_id = e.dept_id) department,
+(select e2.employee_name from staff e2 join departments d2 on e2.employee_id = d2.dept_manager where d2.dept_id = e.dept_id) manager
+from receites r 
+right join orders o 
+on o.RECEITE_ID = r.RECEITE_ID
+join staff e 
+on r.SALESMAN = e.employee_id
+left join products p 
+on o.product_id = p.product_id
+left join items i 
+on o.item_id = i.item_id
+group by e.employee_Name,p.product_name, i.item_name ,e.dept_id
+order by e.employee_Name;
+
+
+
+
+--5-i want to know the most gain day per year
+--
+
+select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc;
 
 
 
