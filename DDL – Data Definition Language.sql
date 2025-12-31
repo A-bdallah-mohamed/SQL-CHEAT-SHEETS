@@ -178,3 +178,49 @@ RENAME TO PLAYERS;
 
 --DESCRIBING A TABLE 
 DESC SCHOOLS;
+
+
+--creatin a sequence
+create sequence items_seq;
+
+--log sequences
+select * from user_sequences;
+
+--log the current value of a sequence
+select items_seq.currval from dual;
+
+--log the next value of a sequence (it stacks)
+select items_seq.nextval from dual;
+
+
+--delete a sequence 
+drop sequence items_seq;
+
+
+--starting from 10 increasing by 20 for next value
+create sequence items_seq
+start with 10 
+increment by 20;
+
+--alter the sequence
+alter sequence items_seq
+increment by 30;
+
+--using sequence
+insert into invoices values (invoices_seq.nextval,to_date('2026-1-1 09:47 AM','yyyy-mm-dd HH12:MI AM'),12);
+
+--deleting CONSTRAINT and every column referencing it in any table (CASCADE)
+ALTER TABLE ITEMS 
+DROP PRIMARY KEY CASCADE;
+
+--DELETING COLUMNS WITH CONSTRAINTS REFERENCED IN OTHER TABLES
+
+--DOESNT WORK CUZ ITS REFERENCES ELSE WHERE
+ALTER TABLE ITEMS 
+DROP COLUMN ITEM_ID;
+
+--WORKS
+ALTER TABLE ITEMS 
+DROP COLUMN ITEM_ID CASCADE CONSTRAINT;
+
+

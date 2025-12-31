@@ -4,7 +4,7 @@
 --
 --staff (Employee id - PK, Employee name, Department id - FK, Salary)
 --->Departments (Department id - PK, Department name, Department Manager - FK)
---->Attendance (Attendance id - PK, Employee id - FK, Attended - Boolean, Start time, End time, work time)
+--->Attendance ( Employee id - FK, Start time, End time)
 --
 --customers (Customer id - PK, Customer Name)
 --->Recites (Recite id - PK, Customer id - FK, Order id - FK, Employee id - FK)
@@ -49,16 +49,12 @@ CONSTRAINT STAFF_DEPT_FK FOREIGN KEY (DEPT_ID) REFERENCES DEPARTMENTS(DEPT_ID)
 ALTER TABLE DEPARTMENTS 
 ADD CONSTRAINT DEPT_MANAGER_FK  FOREIGN KEY (DEPT_MANAGER) REFERENCES STAFF(EMPLOYEE_ID);
 
---->Attendance (Attendance id - PK, Employee id - FK, Attended - Boolean, Start time, End time, work time)
+--->Attendance ( Employee id - FK, Start time, End time)
 CREATE TABLE Attendance(
-ATTENDANCE_ID NUMBER,
 EMPLOYEE_ID NUMBER,
-ATTENDED BOOLEAN,
 DAY_DATE DATE,
 START_TIME DATE,
 END_TIME DATE,
-WORK_TIME DATE ,
-CONSTRAINT ATTENDANCE_PK PRIMARY KEY (ATTENDANCE_ID),
 CONSTRAINT EMPLOYEE_ATTANDANCE_FK FOREIGN KEY (EMPLOYEE_ID) REFERENCES STAFF(EMPLOYEE_ID)
 );
 
@@ -107,9 +103,10 @@ ADD CONSTRAINT RECEITES_ORDER_FK  FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER
 --1-i want to follow up my staff attendance 
 --
 
-SELECT  E.EMPLOYEE_NAME,TO_CHAR(A.DAY_DATE,'yyyy-mm-dd') AS "Day", A.ATTENDED,to_char(A.START_TIME , 'HH12:MI:SS AM') AS "Start Time",
-to_char(A.END_TIME , 'HH12:MI:SS AM') AS "End Time",
-FLOOR((
+SELECT  E.EMPLOYEE_NAME,TO_CHAR(A.DAY_DATE,'yyyy-mm-dd') AS "Day",DECODE(A.START_TIME,NULL, 'No','Yes') Attended,
+decode(A.START_TIME ,null,'Absent',to_char(A.START_TIME , 'HH12:MI:SS AM')) AS "Start Time",
+decode(A.END_TIME,null,'Absent',to_char(A.END_TIME , 'HH12:MI:SS AM')) AS "End Time",
+decode     (A.START_TIME,null,'Absent',FLOOR((
 (select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
 - 
 (select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
@@ -121,11 +118,18 @@ FLOOR((
 (select END_TIME from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE )
 - 
 (select start_time from attendance B where B.EMPLOYEE_ID = A.EMPLOYEE_ID and B.DAY_DATE = A.DAY_DATE ))
-* 24)) *60)||' Minutes' as "Work Time"
+* 24)) *60)||' Minutes') as "Work Time"
 FROM ATTENDANCE A
 JOIN STAFF E
 ON e.employee_id = a.employee_id
 order by A.DAY_DATE;
+
+
+
+
+
+
+
 --WHERE A.EMPLOYEE_ID = 1016 AND A.DAY_DATE = TO_DATE('2025-12-21','YYYY-MM-DD');
 
 --2-i want to know customer visits per day
@@ -153,6 +157,216 @@ order by to_char(r.DAY_AND_TIME,'yyyy-MM');
 --
 
 select d.dept_name "Dept Name", sum(s.salary) "Sum Salary" from staff s join departments d on s.dept_id = d.dept_id group by d.dept_name;
+
+
+
+--5-i want to know the most gain day per year
+--
+
+select distinct to_char(rm.day_and_time,'yyyy') year,
+
+
+(
+select day from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') and subquery.gain in 
+(select max(gain) from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') )
+) day
+
+
+,
+
+
+(
+select max(gain) from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') ) gain 
+
+
+
+
+from RECEITES rm
+order by year desc;
+
+
+
+
+
+
+
+
+
+
+
+
+
+select distinct to_char(rm.day_and_time,'yyyy') year,
+
+
+(
+select day from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') and subquery.gain in 
+(select max(gain) from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') )
+) day
+
+
+,
+
+
+(
+select max(gain) from (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) subquery
+where subquery.year = to_char(rm.day_and_time,'yyyy') ) gain 
+
+
+
+
+from RECEITES rm
+order by year desc;
+
+
+
+
+
+
+select a.year,b.day,a.max_gain_per_day
+from (select distinct to_char(rm.day_and_time,'yyyy') year,max(all_gain.gain) max_gain_per_day
+from
+ RECEITES rm
+ left join (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+left JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) all_gain 
+on all_gain.year = to_char(rm.day_and_time,'yyyy')
+group by to_char(rm.day_and_time,'yyyy')
+order by year desc) a 
+left join (select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+left JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc) b 
+on b.gain = a.max_gain_per_day;
+
+
+
+
+
+--creating view to make it easier
+create view all_days_gain as select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
+SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
+FROM ORDERS O2 
+join RECEITES r2 
+on O2.RECEITE_ID = R2.RECEITE_ID 
+WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
+),0) gain
+from RECEITES R
+left JOIN ORDERS O
+ON O.RECEITE_ID = R.RECEITE_ID
+group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
+ORDER BY gain desc;
+
+
+
+select * from all_days_gain;
+
+
+
+
+
+select a.year,b.day,a.max_gain_per_day
+from (select distinct to_char(rm.day_and_time,'yyyy') year,max(all_gain.gain) max_gain_per_day
+from
+ RECEITES rm
+ left join all_days_gain all_gain 
+on all_gain.year = to_char(rm.day_and_time,'yyyy')
+group by to_char(rm.day_and_time,'yyyy')
+order by year desc) a 
+left join all_days_gain b 
+on b.gain = a.max_gain_per_day;
+
+
+
+
 
 
 --6-i want to get the most active hour per week day
@@ -251,22 +465,6 @@ order by e.employee_Name;
 
 
 
-
---5-i want to know the most gain day per year
---
-
-select distinct to_char(r.DAY_AND_TIME,'yyyy') year ,to_char(r.DAY_AND_TIME,'yyyy-mm-dd') day , nvl((SELECT 
-SUM(NVL(O2.PRODUCT_PRICE,0)) + SUM(NVL(O2.ITEM_PRICE,0)) 
-FROM ORDERS O2 
-join RECEITES r2 
-on O2.RECEITE_ID = R2.RECEITE_ID 
-WHERE to_char(r.DAY_AND_TIME,'yyyy-mm-dd') = to_char(r2.DAY_AND_TIME,'yyyy-mm-dd')
-),0) gain
-from RECEITES R
-JOIN ORDERS O
-ON O.RECEITE_ID = R.RECEITE_ID
-group by R.DAY_AND_TIME,O.RECEITE_ID,TO_CHAR(R.DAY_AND_TIME, 'YYYY')
-ORDER BY gain desc;
 
 
 

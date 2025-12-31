@@ -1,0 +1,38 @@
+{
+    "sqltools.connections": [
+        {
+            "oracleOptions": {
+                "privilege": "Normal",
+                "thickMode": false,
+                "autoCommit": false,
+                "lowerCase": false,
+                "limitPrefetchRows": false
+            },
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 1521,
+            "driver": "Oracle",
+            "name": "hr",
+            "username": "hr",
+            "password": "hr",
+            "database": "hr"
+        },
+        {
+            "oracleOptions": {
+                "privilege": "Normal",
+                "thickMode": false,
+                "autoCommit": false,
+                "lowerCase": false,
+                "limitPrefetchRows": false
+            },
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 1521,
+            "driver": "Oracle",
+            "name": "hr",
+            "username": "appuser",
+            "password": "appuser",
+            "database": "oracle"
+        }
+    ]
+}
