@@ -504,3 +504,217 @@ begin
     end;
  
  
+--FUNCTIONS 
+--CREATING A FUNCTION
+CREATE OR REPLACE  FUNCTION display_sal 
+(f_id number)
+return number
+is 
+fn_sal number;
+begin 
+    select emp_salary into fn_sal from employees where emp_Id = f_id;
+    return fn_sal ;
+    EXCEPTION 
+    WHEN NO_DATA_FOUND THEN 
+    RETURN -1;
+    end;
+
+
+--USE FUNCTION IN AN EXPRESSION
+    declare 
+    v_sal number;
+    begin 
+        v_sal := display_sal(1015);
+        dbms_output.put_line(v_sal);
+        end;
+
+--USE FUNCTION AS PARAMETER
+   begin 
+        dbms_output.put_line(display_sal(1015));
+        end;
+
+--EXECUTE FUNCTION ONE LINE
+EXECUTE DBMS_OUTPUT.PUT_LINE(display_sal(1015));
+
+--AS PART OF A SELECT 
+SELECT display_sal(1015) FROM DUAL;
+
+
+SELECT EMP_ID,FIRST_NAME ,display_sal(EMP_ID) FROM EMPLOYEES WHERE EMP_ID = 1015;
+
+
+
+--CANT USE A FUNCTION WITH A DML STATEMENT ON A TABLE INSIDE A DML STATEMENT ON THE SAME TABLE (mutating)
+UPDATE employees
+SET EMP_SALARY = display_sal(EMP_iD) - 2000
+WHERE EMP_ID = 1016;
+
+
+
+--OBJECT SETTINGS
+SELECT * FROM USER_OBJECTS WHERE OBJECT_NAME ='DISPLAY_SAL';
+
+
+--RETURN EVERY LINE OF CODE IN THE FUNCTION
+SELECT LINE, TEXT FROM U SER_SOURCE WHERE NAME = 'DISPLAY_SAL'; 
+
+--DISPLAYING THE EXCEPTION 
+SELECT display_sal(9999) FROM DUAL;
+
+
+--USING FUNCTION 
+CREATE OR REPLACE FUNCTION INCREASE_SALARY 
+(
+    F_SAL NUMBER
+)
+RETURN varchar2 
+IS 
+BEGIN 
+    IF F_SAL <=5000 THEN 
+    RETURN F_SAL + 1000 || '  (1000)';
+    ELSIF F_SAL > 5000 AND F_SAL <= 10000 THEN 
+    RETURN F_SAL + 1500 || '  (1500)';
+    ELSE 
+    RETURN F_SAL + 2000 || '  (2000)';
+    END IF;
+    END;
+
+    SELECT EMP_ID, FIRST_NAME, EMP_SALARY, INCREASE_SALARY(EMP_SALARY) AS "SALARY (TAX)" FROM EMPLOYEES;
+
+
+--"PACKAGE" IS A GROUP OF REALTED FUNCTIONS, PROCEDURES AND OTHER OBJECTS
+--FIRST WE CREATE THE PACKAGE STRUCTURE 
+CREATE OR REPLACE PACKAGE maths
+is 
+function sum(num1 number, num2 number) return number;
+function miinus(num1 number, num2 number) return number;
+function multiply(num1 number, num2 number) return number;
+function divide(num1 number, num2 number) return number;
+end;
+
+--then we create the package body
+create or replace package body maths 
+is 
+
+--function 1
+function sum(num1 number, num2 number)
+return number 
+is 
+begin 
+    return num1 + num2 ;
+    end;
+
+--function 2
+    function miinus(num1 number, num2 number)
+return number 
+is 
+begin 
+    return num1 - num2 ;
+    end;
+
+--function 3
+    function multiply(num1 number, num2 number)
+return number 
+is 
+begin 
+    return num1 * num2 ;
+    end;
+
+--function 4
+    function divide(num1 number, num2 number)
+return number 
+is 
+begin 
+    return num1 / num2 ;
+    end;
+end;
+
+--then call functions from inside the package
+select maths.sum(3,7) from dual;
+select maths.miinus(7,2) from dual;
+select maths.multiply(5,4) from dual;
+select maths.divide(100,5) from dual;
+
+  
+  
+
+--package initialization section runs first before calling any object inside the package 
+create or replace package test 
+is
+procedure hello;
+end;
+
+create or replace package body test 
+is 
+
+--defining the procedure 
+procedure hello 
+is 
+begin dbms_output.put_line('procedure body');
+end;
+
+--package initialization section
+begin 
+    dbms_output.put_line('package body');
+    end;
+
+execute test.hello;
+
+
+--if you have a package with two procedures same name same number of parameters same data types for parameters it will run an error (conflicts with this use) 
+create or replace package double 
+is 
+procedure proc_1(v_1 number,v_2 varchar2);
+procedure proc_1(v_1 number,v_2 varchar2);
+end;
+
+
+
+--when you call other object from inside an object in a package it should be above it 
+--this is called forward declaration
+--for example 
+create or replace package package_2
+is
+procedure display_salary_in_dollars(id number);
+end;
+
+
+
+create or replace package body package_2 
+is 
+
+dollar_price number := 47;
+
+function  get_salary_in_dollars(
+    Original_sal number
+)
+return number
+is
+begin 
+    return
+Original_sal / dollar_price;
+end;
+
+
+procedure DISPLAY_SALARY_IN_DOLLARS 
+(
+   id number
+)
+is
+
+--its better to have these variables as out parameters instead if you gonna use them else where
+sal  number;
+sal_dollar  number;
+
+begin 
+    select emp_salary into sal from employees where emp_id = id;
+sal_dollar:= get_salary_in_dollars(sal);
+dbms_output.put_line(sal_dollar);
+end; 
+end;
+
+
+execute package_2.display_salary_in_dollars(1007);
+
+
+--using a cursor inside a package
